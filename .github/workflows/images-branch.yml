@@ -42,7 +42,9 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
 
       - name: Set PR when manually triggered (intended for forks)
-        run: echo "PR=${{ inputs.pr }}" >> $GITHUB_ENV
+        env:
+          INPUT_PR: ${{ inputs.pr }}
+        run: echo "PR=$INPUT_PR" >> $GITHUB_ENV
         if: github.event_name == 'workflow_dispatch'
 
       # Skips push-updater-images by setting an output
@@ -121,13 +123,16 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_review'
 
       - name: Prepare tag (forks)
+        env:
+          INPUT_PR: ${{ inputs.pr }}
+          APPROVAL_DECISION: ${{needs.approval.outputs.decision}}
         run: |
-          gh pr checkout ${{ inputs.pr }}
+          gh pr checkout $INPUT_PR
 
           # Ensure the commit we've checked out matches our expected SHA from when we checked the PR's approval status above.
           # This is a security measure to prevent any unreviewed commits from getting pulled into this action workflow.
           # The format is "APPROVED:OPEN:<PR_COMMIT_SHA>", so compare the end of the string to the current commit.
-          [[ ${{needs.approval.outputs.decision}} =~ $(git rev-parse HEAD)$ ]]
+          [[ $APPROVAL_DECISION =~ $(git rev-parse HEAD)$ ]]
 
           git fetch origin main
           git merge origin/main --ff-only || exit 1
